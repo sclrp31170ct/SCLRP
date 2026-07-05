@@ -1,0 +1,29 @@
+[
+  {
+    "id": "chat-1783083857636",
+    "sessionId": "20670",
+    "senderRole": "student",
+    "senderName": "ธรรมรินทร์ สุวรรณสังข์",
+    "text": "แฟ",
+    "attachments": [],
+    "dateTime": "2026-07-03T13:04"
+  },
+  {
+    "id": "chat-1783083860606",
+    "sessionId": "20670",
+    "senderRole": "student",
+    "senderName": "ธรรมรินทร์ สุวรรณสังข์",
+    "text": "ฟก",
+    "attachments": [],
+    "dateTime": "2026-07-03T13:04"
+  },
+  {
+    "id": "chat-1783083862763",
+    "sessionId": "20670",
+    "senderRole": "admin",
+    "senderName": "ผู้ดูแลระบบ",
+    "text": "กกกฟ",
+    "attachments": [],
+    "dateTime": "2026-07-03T13:04"
+  }
+]
