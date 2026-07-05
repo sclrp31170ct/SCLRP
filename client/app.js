@@ -14,6 +14,7 @@ let selectedSongIds = [];
 let collapsedDates = {};
 let uploadedLostFoundImage = "";
 let currentLfFilter = "all";
+let currentLfCategory = "all";
 let currentChatSessionId = null;
 let chatPollInterval = null;
 let studentChatAttachments = [];
@@ -36,6 +37,53 @@ const PROFANITY_WORDS = [
 let syncTimer = null;
 let serverSyncAvailable = false;
 let lostFoundPollInterval = null;
+
+const LOST_FOUND_CATEGORIES = [
+  { value: "money", label: "เงิน/ทอง", icon: "💵" },
+  { value: "electronics", label: "อุปกรณ์อิเล็กทรอนิกส์", icon: "📱" },
+  { value: "documents", label: "เอกสาร/บัตร", icon: "🪪" },
+  { value: "keys", label: "กุญแจ/กุญแจรถ", icon: "🔑" },
+  { value: "clothing", label: "เสื้อผ้า/หมวก", icon: "👕" },
+  { value: "accessories", label: "เครื่องประดับ", icon: "💍" },
+  { value: "belongings", label: "ของใช้ทั่วไป", icon: "🎒" },
+  { value: "others", label: "อื่น ๆ", icon: "🧰" }
+];
+
+function getLostFoundCategoryMeta(category) {
+  return LOST_FOUND_CATEGORIES.find(item => item.value === category) || LOST_FOUND_CATEGORIES[LOST_FOUND_CATEGORIES.length - 1];
+}
+
+function getLostFoundCategoryBadge(category) {
+  const meta = getLostFoundCategoryMeta(category);
+  return `<span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[10px] font-semibold border border-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600"><span class="mr-1">${meta.icon}</span>${meta.label}</span>`;
+}
+
+function renderLostFoundCategoryOptions(selectedCategory = "others") {
+  const container = getEl("lf-category-options");
+  const hidden = getEl("lf-category");
+
+  if (!container || !hidden) return;
+
+  container.innerHTML = LOST_FOUND_CATEGORIES.map(category => {
+    const isActive = category.value === selectedCategory;
+    return `
+      <button type="button" data-value="${category.value}" class="flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-semibold transition ${isActive ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-950/30 dark:text-blue-300' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50/70 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-blue-400 dark:hover:bg-slate-800'}">
+        <span>${category.icon}</span>
+        <span>${category.label}</span>
+      </button>
+    `;
+  }).join("");
+
+  container.querySelectorAll("button").forEach(button => {
+    button.addEventListener("click", () => {
+      const selected = button.getAttribute("data-value") || "others";
+      hidden.value = selected;
+      renderLostFoundCategoryOptions(selected);
+    });
+  });
+
+  hidden.value = selectedCategory;
+}
 
 function getEl(id) {
   return document.getElementById(id);
@@ -2786,6 +2834,7 @@ function clearPlayedSongs() {
 
 // 1. แสดงรายการของหายและของที่เก็บได้สำหรับฝั่งนักเรียน
 function createLostFoundCard(item) {
+  const categoryMeta = getLostFoundCategoryMeta(item.category);
   const imageHtml = item.images && item.images.length > 0
     ? `<div class="h-32 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 mb-3"><img src="${item.images[0]}" class="w-full h-full object-cover" alt="${item.itemName}"></div>`
     : `<div class="h-32 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 flex items-center justify-center text-slate-400 mb-3"><i class="fa-solid fa-box text-xl"></i></div>`;
@@ -2800,6 +2849,7 @@ function createLostFoundCard(item) {
   }
 
   const pinnedBadge = item.pinned ? `<span class="px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-semibold"><i class="fa-solid fa-thumbtack mr-1"></i>ปักหมุด</span>` : "";
+  const categoryBadge = getLostFoundCategoryBadge(item.category);
 
   const notesHtml = item.adminNotes
     ? `<div class="mt-3 rounded-lg border border-emerald-100 bg-emerald-50 p-2 text-[10px] text-emerald-700"><i class="fa-solid fa-circle-check mr-1"></i>${item.adminNotes}</div>`
@@ -2855,6 +2905,7 @@ function createLostFoundCard(item) {
           <h4 class="font-bold text-sm text-slate-800 dark:text-white leading-snug min-w-0">${item.itemName}</h4>
           <div class="flex items-center gap-2 flex-wrap">
             ${pinnedBadge}
+            ${categoryBadge}
             ${statusBadge}
           </div>
         </div>
@@ -2862,6 +2913,7 @@ function createLostFoundCard(item) {
           <div class="flex items-center"><i class="fa-solid fa-map-marker-alt w-4 text-slate-400"></i><span>สถานที่: ${item.roomLocation}</span></div>
           <div class="flex items-center"><i class="fa-solid fa-clock w-4 text-slate-400"></i><span>วันเวลา: ${formatThaiDate(item.dateTime.split("T")[0])} (${item.dateTime.split("T")[1] || ""})</span></div>
           <div class="flex items-center"><i class="fa-solid fa-user w-4 text-slate-400"></i><span>ผู้แจ้ง: ${item.reporterName} (${item.classroom})</span></div>
+          <div class="flex items-center"><i class="fa-solid fa-tags w-4 text-slate-400"></i><span>หมวด: ${categoryMeta.icon} ${categoryMeta.label}</span></div>
           <div class="flex items-center"><i class="fa-solid fa-phone w-4 text-slate-400"></i><span class="text-blue-600 dark:text-blue-400 font-semibold select-all">ติดต่อ: ${item.contact}</span></div>
           ${item.description ? `<p class="mt-2 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/30 p-2 rounded">${item.description}</p>` : ""}
         </div>
@@ -2883,13 +2935,16 @@ function renderStudentLostFound() {
   const dbItems = window.StudentCouncilDB.getLostFound();
 
   let filtered = dbItems.filter(item => {
-    if (currentLfFilter === "searching") {
-      return item.status === "searching" || item.status === "found_matching";
-    }
-    if (currentLfFilter === "returned") {
-      return item.status === "returned";
-    }
-    return true;
+    // ซ่อนรายงาน "เก็บเงินได้" จากนักเรียนปกติ (เฉพาะแอดมินเห็น)
+    if (item.type === "money_collected") return false;
+    
+    const matchesStatus = currentLfFilter === "searching"
+      ? item.status === "searching" || item.status === "found_matching"
+      : currentLfFilter === "returned"
+        ? item.status === "returned"
+        : true;
+    const matchesCategory = currentLfCategory === "all" || item.category === currentLfCategory;
+    return matchesStatus && matchesCategory;
   });
 
   if (searchQuery) {
@@ -2939,6 +2994,11 @@ function filterLostFound(status) {
   renderStudentLostFound();
 }
 
+function filterLostFoundByCategory(category) {
+  currentLfCategory = category;
+  renderStudentLostFound();
+}
+
 // 3. เปิดโมดอลแจ้งเรื่องของหาย/เก็บได้
 function openLostFoundModal(type) {
   document.getElementById("lf-type").value = type;
@@ -2947,17 +3007,32 @@ function openLostFoundModal(type) {
   const locLabel = document.getElementById("lf-location-label");
   const dateLabel = document.getElementById("lf-date-label");
   const roomInput = document.getElementById("lf-room-location");
+  const adminWarning = document.getElementById("lf-admin-warning");
+  const categorySection = document.getElementById("lf-category-options")?.parentElement;
 
   if (type === "lost") {
     title.innerHTML = `<i class="fa-solid fa-bullhorn text-rose-500 mr-2"></i>แจ้งสิ่งของสูญหาย (Report Lost)`;
     locLabel.innerHTML = `คาดว่าหายที่ไหน <span class="text-rose-500">*</span>`;
     dateLabel.innerHTML = `วันที่และเวลาที่คาดว่าหาย <span class="text-rose-500">*</span>`;
     roomInput.placeholder = "ระบุสถานที่ เช่น ชั้น 432 / สนามฟุตบอล / โรงอาหาร";
-  } else {
+    adminWarning?.classList.add("hidden");
+    if (categorySection) categorySection.classList.remove("hidden");
+  } else if (type === "found") {
     title.innerHTML = `<i class="fa-solid fa-hand-holding-heart text-emerald-500 mr-2"></i>แจ้งเก็บของได้ (Report Found)`;
     locLabel.innerHTML = `เก็บได้ที่ไหน <span class="text-rose-500">*</span>`;
     dateLabel.innerHTML = `วันที่และเวลาที่เก็บได้ <span class="text-rose-500">*</span>`;
     roomInput.placeholder = "ระบุสถานที่ที่พบ เช่น โรงยิมชั้น 1 / อ่างล้างหน้าอาคาร 3";
+    adminWarning?.classList.add("hidden");
+    if (categorySection) categorySection.classList.remove("hidden");
+  } else if (type === "money_collected") {
+    title.innerHTML = `<i class="fa-solid fa-coins text-amber-600 mr-2"></i>แจ้งเก็บเงินได้ (Money Collected)🔒`;
+    locLabel.innerHTML = `เก็บเงินได้ที่ไหน <span class="text-rose-500">*</span>`;
+    dateLabel.innerHTML = `วันที่และเวลาที่เก็บเงิน <span class="text-rose-500">*</span>`;
+    roomInput.placeholder = "ระบุสถานที่ที่พบเงิน เช่น ชั้น 432";
+    adminWarning?.classList.remove("hidden");
+    if (categorySection) categorySection.classList.add("hidden");
+    // บังคับ category เป็น money สำหรับรายงาน
+    document.getElementById("lf-category").value = "money";
   }
 
   // พรีฟิลข้อมูลผู้รายงาน
@@ -2976,6 +3051,7 @@ function openLostFoundModal(type) {
 
   document.getElementById("lf-description").value = "";
   document.getElementById("lf-contact").value = "";
+  renderLostFoundCategoryOptions("others");
   
   // เคลียร์รูปภาพอัปโหลด
   uploadedLostFoundImage = "";
@@ -3002,6 +3078,7 @@ function submitLostFoundReport() {
   const dateTime = document.getElementById("lf-datetime").value;
   const description = document.getElementById("lf-description").value.trim();
   const contact = document.getElementById("lf-contact").value.trim();
+  const category = document.getElementById("lf-category").value || "others";
 
   // ดึงข้อมูลผู้แจ้งที่กรอกล่าสุด
   const typedName = document.getElementById("lf-reporter-name").value.trim();
@@ -3048,12 +3125,15 @@ function submitLostFoundReport() {
     dateTime,
     description,
     contact,
+    category,
     status: "searching",
     pinned: false,
     images: uploadedLostFoundImage ? [uploadedLostFoundImage] : [],
     comments: [], // เพิ่มอาเรย์คอมเมนต์เตรียมไว้
     adminNotes: "",
-    resolvedDate: ""
+    resolvedDate: "",
+    // ซ่อนจากนักเรียนปกติหากเป็น "เก็บเงินได้"
+    visibility: type === "money_collected" ? "admin_only" : "public"
   };
 
   dbList.unshift(newItem);
@@ -3076,6 +3156,7 @@ function renderAdminLostFound() {
   const dbItems = window.StudentCouncilDB.getLostFound();
   const statusFilter = document.getElementById("admin-lf-filter-status").value;
   const typeFilter = document.getElementById("admin-lf-filter-type").value;
+  const categoryFilter = document.getElementById("admin-lf-filter-category").value;
   const searchVal = document.getElementById("admin-lf-search").value.toLowerCase();
 
   let filtered = dbItems;
@@ -3085,6 +3166,9 @@ function renderAdminLostFound() {
   }
   if (typeFilter !== "all") {
     filtered = filtered.filter(item => item.type === typeFilter);
+  }
+  if (categoryFilter !== "all") {
+    filtered = filtered.filter(item => item.category === categoryFilter);
   }
 
   filtered.sort((a, b) => {
@@ -3110,6 +3194,7 @@ function renderAdminLostFound() {
 
   tableBody.innerHTML = filtered.map(item => {
     const isLost = item.type === "lost";
+    const categoryMeta = getLostFoundCategoryMeta(item.category);
     const typeBadge = isLost 
       ? `<span class="px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-bold">ของหาย</span>`
       : `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold">เก็บได้</span>`;
@@ -3127,6 +3212,7 @@ function renderAdminLostFound() {
       <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
         <td class="p-4">${imgTag}</td>
         <td class="p-4">${typeBadge}</td>
+        <td class="p-4"><span class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">${categoryMeta.icon} ${categoryMeta.label}</span></td>
         <td class="p-4 font-bold text-slate-800 dark:text-slate-200">${item.itemName}</td>
         <td class="p-4 font-medium text-slate-600 dark:text-slate-400">${item.roomLocation}</td>
         <td class="p-4">
@@ -3167,6 +3253,7 @@ function openAdminLostFoundModal(id) {
     : `<span class="text-emerald-500">เก็บได้</span>`;
   document.getElementById("admin-lf-lbl-name").textContent = item.itemName;
   document.getElementById("admin-lf-lbl-location").textContent = item.roomLocation;
+  document.getElementById("admin-lf-lbl-category").textContent = `${getLostFoundCategoryMeta(item.category).icon} ${getLostFoundCategoryMeta(item.category).label}`;
   document.getElementById("admin-lf-lbl-datetime").textContent = `${formatThaiDate(item.dateTime.split("T")[0])} (${item.dateTime.split("T")[1] || ""})`;
   document.getElementById("admin-lf-lbl-reporter").textContent = `${item.reporterName} ชั้น ${item.classroom} (รหัสนักเรียน: ${item.studentId})`;
   document.getElementById("admin-lf-lbl-desc").textContent = item.description || "- ไม่มีรายละเอียดเพิ่มเติม -";
