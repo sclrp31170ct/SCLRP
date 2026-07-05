@@ -3017,6 +3017,18 @@ function openLostFoundModal(type) {
     roomInput.placeholder = "ระบุสถานที่ เช่น ชั้น 432 / สนามฟุตบอล / โรงอาหาร";
     adminWarning?.classList.add("hidden");
     if (categorySection) categorySection.classList.remove("hidden");
+    // แสดงส่วนอัปโหลดรูป
+    document.getElementById("lf-image-upload-section")?.classList.remove("hidden");
+    // เปลี่ยน label และ placeholder กลับเป็นชื่อสิ่งของ
+    const itemNameLabel = document.getElementById("lf-item-name-label");
+    const itemNameInput = document.getElementById("lf-item-name");
+    if (itemNameLabel) itemNameLabel.innerHTML = `ชื่อสิ่งของ <span class="text-rose-500">*</span>`;
+    if (itemNameInput) {
+      itemNameInput.type = "text";
+      itemNameInput.placeholder = "ระบุชื่อสิ่งของ เช่น กุญแจรถ, สมุดจด, โทรศัพท์";
+      itemNameInput.min = "";
+      itemNameInput.step = "";
+    }
   } else if (type === "found") {
     title.innerHTML = `<i class="fa-solid fa-hand-holding-heart text-emerald-500 mr-2"></i>แจ้งเก็บของได้ (Report Found)`;
     locLabel.innerHTML = `เก็บได้ที่ไหน <span class="text-rose-500">*</span>`;
@@ -3024,6 +3036,18 @@ function openLostFoundModal(type) {
     roomInput.placeholder = "ระบุสถานที่ที่พบ เช่น โรงยิมชั้น 1 / อ่างล้างหน้าอาคาร 3";
     adminWarning?.classList.add("hidden");
     if (categorySection) categorySection.classList.remove("hidden");
+    // แสดงส่วนอัปโหลดรูป
+    document.getElementById("lf-image-upload-section")?.classList.remove("hidden");
+    // เปลี่ยน label และ placeholder กลับเป็นชื่อสิ่งของ
+    const itemNameLabel = document.getElementById("lf-item-name-label");
+    const itemNameInput = document.getElementById("lf-item-name");
+    if (itemNameLabel) itemNameLabel.innerHTML = `ชื่อสิ่งของ <span class="text-rose-500">*</span>`;
+    if (itemNameInput) {
+      itemNameInput.type = "text";
+      itemNameInput.placeholder = "ระบุชื่อสิ่งของ เช่น กุญแจรถ, สมุดจด, โทรศัพท์";
+      itemNameInput.min = "";
+      itemNameInput.step = "";
+    }
   } else if (type === "money_collected") {
     title.innerHTML = `<i class="fa-solid fa-coins text-amber-600 mr-2"></i>แจ้งเก็บเงินได้ (Money Collected)🔒`;
     locLabel.innerHTML = `เก็บเงินได้ที่ไหน <span class="text-rose-500">*</span>`;
@@ -3031,6 +3055,18 @@ function openLostFoundModal(type) {
     roomInput.placeholder = "ระบุสถานที่ที่พบเงิน เช่น ชั้น 432";
     adminWarning?.classList.remove("hidden");
     if (categorySection) categorySection.classList.add("hidden");
+    // ซ่อนส่วนอัปโหลดรูป
+    document.getElementById("lf-image-upload-section")?.classList.add("hidden");
+    // เปลี่ยน label และ placeholder สำหรับจำนวนเงิน
+    const itemNameLabel = document.getElementById("lf-item-name-label");
+    const itemNameInput = document.getElementById("lf-item-name");
+    if (itemNameLabel) itemNameLabel.innerHTML = `ระบุจำนวนเงิน <span class="text-rose-500">*</span>`;
+    if (itemNameInput) {
+      itemNameInput.type = "number";
+      itemNameInput.placeholder = "เช่น 500 (บาท)";
+      itemNameInput.min = "0";
+      itemNameInput.step = "1";
+    }
     // บังคับ category เป็น money สำหรับรายงาน
     document.getElementById("lf-category").value = "money";
   }
