@@ -39,7 +39,7 @@ let serverSyncAvailable = false;
 let lostFoundPollInterval = null;
 
 const LOST_FOUND_CATEGORIES = [
-  { value: "money", label: "เงิน/ทอง", icon: "💵" },
+  { value: "money", label: "เงิน", icon: "💵" },
   { value: "electronics", label: "อุปกรณ์อิเล็กทรอนิกส์", icon: "📱" },
   { value: "documents", label: "เอกสาร/บัตร", icon: "🪪" },
   { value: "keys", label: "กุญแจ/กุญแจรถ", icon: "🔑" },
@@ -87,6 +87,72 @@ function renderLostFoundCategoryOptions(selectedCategory = "others") {
 
 function getEl(id) {
   return document.getElementById(id);
+}
+
+function showToast(message, type = "info", duration = 2800) {
+  const container = getEl("app-toast");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  const icons = {
+    success: "fa-circle-check",
+    error: "fa-circle-exclamation",
+    info: "fa-circle-info"
+  };
+  const colors = {
+    success: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/40 dark:text-emerald-300",
+    error: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/50 dark:bg-rose-950/40 dark:text-rose-300",
+    info: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/50 dark:bg-blue-950/40 dark:text-blue-300"
+  };
+
+  toast.className = `toast-item border rounded-xl px-3 py-2.5 shadow-lg backdrop-blur-sm pointer-events-auto ${colors[type] || colors.info}`;
+  toast.innerHTML = `
+    <div class="flex items-start gap-2">
+      <i class="fa-solid ${icons[type] || icons.info} mt-0.5"></i>
+      <div class="text-[12px] font-medium leading-snug">${message}</div>
+    </div>
+  `;
+
+  container.appendChild(toast);
+  requestFrame(() => toast.classList.add("toast-visible"));
+
+  window.clearTimeout(toast._timer);
+  toast._timer = window.setTimeout(() => {
+    toast.classList.remove("toast-visible");
+    setTimeout(() => toast.remove(), 220);
+  }, duration);
+}
+
+function showModal(modalId) {
+  const modal = getEl(modalId);
+  if (!modal) return;
+  const panel = modal.querySelector('.modal-panel');
+
+  modal.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+
+  requestFrame(() => {
+    modal.classList.add('modal-show');
+    if (panel) panel.classList.add('modal-show');
+  });
+}
+
+function hideModal(modalId, callback) {
+  const modal = getEl(modalId);
+  if (!modal) {
+    if (callback) callback();
+    return;
+  }
+  const panel = modal.querySelector('.modal-panel');
+
+  modal.classList.remove('modal-show');
+  if (panel) panel.classList.remove('modal-show');
+
+  setTimeout(() => {
+    modal.classList.add('hidden');
+    document.body.classList.remove('modal-open');
+    if (callback) callback();
+  }, 240);
 }
 
 function setText(id, value) {
@@ -156,10 +222,39 @@ window.addEventListener("DOMContentLoaded", () => {
   bindSidebarNavigation();
   initAutoFillLogin();
   setupFileUploadListeners();
+  setupGlobalModalInteractions();
   checkServerHealth();
   window.scheduleSyncData = scheduleSyncData;
   window.addEventListener("storage", handleExternalStorageChange);
 });
+
+function setupGlobalModalInteractions() {
+  const modalIds = ["student-lostfound-modal", "admin-song-modal"];
+
+  modalIds.forEach(modalId => {
+    const modal = getEl(modalId);
+    if (!modal) return;
+
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        if (modalId === "student-lostfound-modal") {
+          closeLostFoundModal();
+        } else {
+          closeAdminSongModal();
+        }
+      }
+    });
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (!getEl("student-lostfound-modal")?.classList.contains("hidden")) {
+      closeLostFoundModal();
+    } else if (!getEl("admin-song-modal")?.classList.contains("hidden")) {
+      closeAdminSongModal();
+    }
+  });
+}
 
 function initAutoFillLogin() {
   const studentIdInput = getEl("login-student-id");
@@ -2766,11 +2861,11 @@ function openAdminSongModal(songId) {
   document.getElementById("admin-song-status").value = song.status;
   document.getElementById("admin-song-feedback").value = song.adminFeedback || "";
 
-  document.getElementById("admin-song-modal").classList.remove("hidden");
+  showModal("admin-song-modal");
 }
 
 function closeAdminSongModal() {
-  document.getElementById("admin-song-modal").classList.add("hidden");
+  hideModal("admin-song-modal");
 }
 
 function saveSongStatus() {
@@ -2897,12 +2992,15 @@ function createLostFoundCard(item) {
     </div>
   `;
 
+  const displayName = item.type === "money_found" && currentRole !== "admin"
+    ? "*".repeat(String(item.itemName).replace(/\D/g, "").length || 4)
+    : item.itemName;
   return `
-    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-premium flex flex-col justify-between text-xs">
+    <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/50 shadow-premium flex flex-col justify-between text-xs fade-in-up">
       <div>
         ${imageHtml}
         <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <h4 class="font-bold text-sm text-slate-800 dark:text-white leading-snug min-w-0">${item.itemName}</h4>
+          <h4 class="font-bold text-sm text-slate-800 dark:text-white leading-snug min-w-0">${displayName}</h4>
           <div class="flex items-center gap-2 flex-wrap">
             ${pinnedBadge}
             ${categoryBadge}
@@ -2935,9 +3033,6 @@ function renderStudentLostFound() {
   const dbItems = window.StudentCouncilDB.getLostFound();
 
   let filtered = dbItems.filter(item => {
-    // ซ่อนรายงาน "เก็บเงินได้" จากนักเรียนปกติ (เฉพาะแอดมินเห็น)
-    if (item.type === "money_collected") return false;
-    
     const matchesStatus = currentLfFilter === "searching"
       ? item.status === "searching" || item.status === "found_matching"
       : currentLfFilter === "returned"
@@ -2956,8 +3051,8 @@ function renderStudentLostFound() {
     );
   }
 
-  const lostItems = filtered.filter(item => item.type === "lost");
-  const foundItems = filtered.filter(item => item.type === "found");
+  const lostItems = filtered.filter(item => item.type === "lost" || item.type === "money_lost");
+  const foundItems = filtered.filter(item => item.type === "found" || item.type === "money_found");
 
   lostItems.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
   foundItems.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
@@ -2999,65 +3094,33 @@ function filterLostFoundByCategory(category) {
   renderStudentLostFound();
 }
 
-// 3. เปิดโมดอลแจ้งเรื่องของหาย/เก็บได้
-function openLostFoundModal(type) {
-  document.getElementById("lf-type").value = type;
-  
-  const title = document.getElementById("lf-modal-title");
-  const locLabel = document.getElementById("lf-location-label");
-  const dateLabel = document.getElementById("lf-date-label");
-  const roomInput = document.getElementById("lf-room-location");
-  const adminWarning = document.getElementById("lf-admin-warning");
-  const categorySection = document.getElementById("lf-category-options")?.parentElement;
+// helper to open money modal programmatically and pre-configure
+function openMoneyModal() {
+  openLostFoundModal('money');
+}
 
-  if (type === "lost") {
-    title.innerHTML = `<i class="fa-solid fa-bullhorn text-rose-500 mr-2"></i>แจ้งสิ่งของสูญหาย (Report Lost)`;
-    locLabel.innerHTML = `คาดว่าหายที่ไหน <span class="text-rose-500">*</span>`;
-    dateLabel.innerHTML = `วันที่และเวลาที่คาดว่าหาย <span class="text-rose-500">*</span>`;
-    roomInput.placeholder = "ระบุสถานที่ เช่น ชั้น 432 / สนามฟุตบอล / โรงอาหาร";
-    adminWarning?.classList.add("hidden");
-    if (categorySection) categorySection.classList.remove("hidden");
-    // แสดงส่วนอัปโหลดรูป
-    document.getElementById("lf-image-upload-section")?.classList.remove("hidden");
-    // เปลี่ยน label และ placeholder กลับเป็นชื่อสิ่งของ
-    const itemNameLabel = document.getElementById("lf-item-name-label");
-    const itemNameInput = document.getElementById("lf-item-name");
-    if (itemNameLabel) itemNameLabel.innerHTML = `ชื่อสิ่งของ <span class="text-rose-500">*</span>`;
-    if (itemNameInput) {
-      itemNameInput.type = "text";
-      itemNameInput.placeholder = "ระบุชื่อสิ่งของ เช่น กุญแจรถ, สมุดจด, โทรศัพท์";
-      itemNameInput.min = "";
-      itemNameInput.step = "";
-    }
-  } else if (type === "found") {
-    title.innerHTML = `<i class="fa-solid fa-hand-holding-heart text-emerald-500 mr-2"></i>แจ้งเก็บของได้ (Report Found)`;
-    locLabel.innerHTML = `เก็บได้ที่ไหน <span class="text-rose-500">*</span>`;
-    dateLabel.innerHTML = `วันที่และเวลาที่เก็บได้ <span class="text-rose-500">*</span>`;
-    roomInput.placeholder = "ระบุสถานที่ที่พบ เช่น โรงยิมชั้น 1 / อ่างล้างหน้าอาคาร 3";
-    adminWarning?.classList.add("hidden");
-    if (categorySection) categorySection.classList.remove("hidden");
-    // แสดงส่วนอัปโหลดรูป
-    document.getElementById("lf-image-upload-section")?.classList.remove("hidden");
-    // เปลี่ยน label และ placeholder กลับเป็นชื่อสิ่งของ
-    const itemNameLabel = document.getElementById("lf-item-name-label");
-    const itemNameInput = document.getElementById("lf-item-name");
-    if (itemNameLabel) itemNameLabel.innerHTML = `ชื่อสิ่งของ <span class="text-rose-500">*</span>`;
-    if (itemNameInput) {
-      itemNameInput.type = "text";
-      itemNameInput.placeholder = "ระบุชื่อสิ่งของ เช่น กุญแจรถ, สมุดจด, โทรศัพท์";
-      itemNameInput.min = "";
-      itemNameInput.step = "";
-    }
-  } else if (type === "money_collected") {
-    title.innerHTML = `<i class="fa-solid fa-coins text-amber-600 mr-2"></i>แจ้งเก็บเงินได้ (Money Collected)🔒`;
-    locLabel.innerHTML = `เก็บเงินได้ที่ไหน <span class="text-rose-500">*</span>`;
-    dateLabel.innerHTML = `วันที่และเวลาที่เก็บเงิน <span class="text-rose-500">*</span>`;
-    roomInput.placeholder = "ระบุสถานที่ที่พบเงิน เช่น ชั้น 432";
-    adminWarning?.classList.remove("hidden");
-    if (categorySection) categorySection.classList.add("hidden");
-    // ซ่อนส่วนอัปโหลดรูป
+
+// 3. เปิดโมดอลแจ้งเรื่องเงิน
+function openLostFoundModal(type) {
+  // สำหรับปุ่มแจ้งเงิน ให้เซ็ตเป็น "money" และแสดง selector
+  if (type === "money") {
+    document.getElementById("lf-type").value = "money"; // ยังไม่ได้เซ็ต money_lost/money_found ที่นี่ เรียกใช้ selector
+    
+    const title = document.getElementById("lf-modal-title");
+    title.innerHTML = `<i class="fa-solid fa-coins text-amber-600 mr-2"></i>แจ้งเงินเอา`;
+    
+    const locLabel = document.getElementById("lf-location-label");
+    const dateLabel = document.getElementById("lf-date-label");
+    locLabel.innerHTML = `เงินหายที่ไหน <span class="text-rose-500">*</span>`;
+    dateLabel.innerHTML = `วันที่และเวลาที่เงินหาย/เก็บ <span class="text-rose-500">*</span>`;
+    
+    const roomInput = document.getElementById("lf-room-location");
+    roomInput.placeholder = "ระบุสถานที่ เช่น ชั้น 432 / โรงอาหาร";
+    
+    document.getElementById("lf-category-options")?.parentElement?.classList.add("hidden");
     document.getElementById("lf-image-upload-section")?.classList.add("hidden");
-    // เปลี่ยน label และ placeholder สำหรับจำนวนเงิน
+    document.getElementById("lf-money-type-section")?.classList.remove("hidden");
+    
     const itemNameLabel = document.getElementById("lf-item-name-label");
     const itemNameInput = document.getElementById("lf-item-name");
     if (itemNameLabel) itemNameLabel.innerHTML = `ระบุจำนวนเงิน <span class="text-rose-500">*</span>`;
@@ -3067,8 +3130,40 @@ function openLostFoundModal(type) {
       itemNameInput.min = "0";
       itemNameInput.step = "1";
     }
-    // บังคับ category เป็น money สำหรับรายงาน
-    document.getElementById("lf-category").value = "money";
+    renderLostFoundCategoryOptions("money");
+  } else {
+    document.getElementById("lf-type").value = type;
+    const title = document.getElementById("lf-modal-title");
+    if (type === "lost") {
+      title.innerHTML = `<i class="fa-solid fa-bullhorn text-rose-600 mr-2"></i>แจ้งของหาย`;
+    } else if (type === "found") {
+      title.innerHTML = `<i class="fa-solid fa-box-archive text-emerald-600 mr-2"></i>แจ้งเก็บได้`;
+    } else {
+      title.innerHTML = `แจ้งของหาย / เก็บของได้`;
+    }
+
+    const locLabel = document.getElementById("lf-location-label");
+    const dateLabel = document.getElementById("lf-date-label");
+    locLabel.innerHTML = `สถานที่ <span class="text-rose-500">*</span>`;
+    dateLabel.innerHTML = `วันที่และเวลา <span class="text-rose-500">*</span>`;
+    
+    const roomInput = document.getElementById("lf-room-location");
+    roomInput.placeholder = "เช่น ห้อง 421 / โรงอาหาร";
+    
+    document.getElementById("lf-category-options")?.parentElement?.classList.remove("hidden");
+    document.getElementById("lf-image-upload-section")?.classList.remove("hidden");
+    document.getElementById("lf-money-type-section")?.classList.add("hidden");
+    
+    const itemNameLabel = document.getElementById("lf-item-name-label");
+    const itemNameInput = document.getElementById("lf-item-name");
+    if (itemNameLabel) itemNameLabel.innerHTML = `ชื่อสิ่งของ / รายการ <span class="text-rose-500">*</span>`;
+    if (itemNameInput) {
+      itemNameInput.type = "text";
+      itemNameInput.placeholder = "เช่น กระเป๋า, โทรศัพท์, สมุด";
+      itemNameInput.removeAttribute('min');
+      itemNameInput.removeAttribute('step');
+    }
+    renderLostFoundCategoryOptions("others");
   }
 
   // พรีฟิลข้อมูลผู้รายงาน
@@ -3087,18 +3182,27 @@ function openLostFoundModal(type) {
 
   document.getElementById("lf-description").value = "";
   document.getElementById("lf-contact").value = "";
-  renderLostFoundCategoryOptions("others");
+  const radios = document.querySelectorAll('input[name="money-type"]');
+  radios.forEach(r => r.checked = false);
   
   // เคลียร์รูปภาพอัปโหลด
   uploadedLostFoundImage = "";
   document.getElementById("lf-image-preview").src = "";
   document.getElementById("lf-image-preview-container").classList.add("hidden");
 
-  document.getElementById("student-lostfound-modal").classList.remove("hidden");
+  showModal("student-lostfound-modal");
+  // Focus amount input for money flow
+  setTimeout(() => {
+    const f = document.getElementById('lf-item-name');
+    if (f) f.focus();
+  }, 120);
 }
 
+
+
+
 function closeLostFoundModal() {
-  document.getElementById("student-lostfound-modal").classList.add("hidden");
+  hideModal("student-lostfound-modal");
 }
 
 // 4. บันทึกคำร้องเรียนของหาย/เก็บได้ของนักเรียน
@@ -3108,7 +3212,17 @@ function submitLostFoundReport() {
     return;
   }
 
-  const type = document.getElementById("lf-type").value;
+  let type = document.getElementById("lf-type").value;
+  // If this is the generic money flow, read the radio selector
+  if (type === "money") {
+    const sel = document.querySelector('input[name="money-type"]:checked');
+    if (sel) {
+      type = sel.value === "lost" ? "money_lost" : "money_found";
+    } else {
+      alert("กรุณาเลือกว่าเป็น เงินหาย หรือ เก็บได้");
+      return;
+    }
+  }
   const itemName = document.getElementById("lf-item-name").value.trim();
   const roomLocation = document.getElementById("lf-room-location").value.trim();
   const dateTime = document.getElementById("lf-datetime").value;
@@ -3168,8 +3282,8 @@ function submitLostFoundReport() {
     comments: [], // เพิ่มอาเรย์คอมเมนต์เตรียมไว้
     adminNotes: "",
     resolvedDate: "",
-    // ซ่อนจากนักเรียนปกติหากเป็น "เก็บเงินได้"
-    visibility: type === "money_collected" ? "admin_only" : "public"
+    // กำหนดความเป็นส่วนตัว: ถ้าเป็น money_found ให้เป็น admin_only, ถ้า money_lost เป็น public
+    visibility: type === "money_found" ? "admin_only" : "public"
   };
 
   dbList.unshift(newItem);
@@ -3177,8 +3291,9 @@ function submitLostFoundReport() {
 
   showLoading(() => {
     closeLostFoundModal();
-    alert("ส่งข้อมูลสำเร็จแล้ว! สภานักเรียนจะดำเนินการตรวจสอบและช่วยประชาสัมพันธ์ให้โดยเร็วที่สุด");
+    showToast("ส่งข้อมูลสำเร็จแล้ว! สภานักเรียนจะดำเนินการตรวจสอบและช่วยประชาสัมพันธ์ให้โดยเร็วที่สุด", "success");
     renderStudentLostFound();
+    // If money_found was submitted, admin-only: keep modal closed; otherwise notify
   });
 }
 
@@ -3201,7 +3316,9 @@ function renderAdminLostFound() {
     filtered = filtered.filter(item => item.status === statusFilter);
   }
   if (typeFilter !== "all") {
-    filtered = filtered.filter(item => item.type === typeFilter);
+    filtered = filtered.filter(item => typeFilter === "lost"
+      ? item.type === "lost" || item.type === "money_lost"
+      : item.type === "found" || item.type === "money_found");
   }
   if (categoryFilter !== "all") {
     filtered = filtered.filter(item => item.category === categoryFilter);
@@ -3229,11 +3346,14 @@ function renderAdminLostFound() {
   emptyEl.classList.add("hidden");
 
   tableBody.innerHTML = filtered.map(item => {
-    const isLost = item.type === "lost";
     const categoryMeta = getLostFoundCategoryMeta(item.category);
-    const typeBadge = isLost 
+    const typeBadge = item.type === "lost"
       ? `<span class="px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-bold">ของหาย</span>`
-      : `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold">เก็บได้</span>`;
+      : item.type === "money_lost"
+        ? `<span class="px-2 py-0.5 bg-rose-100 text-rose-800 rounded font-bold">เงินหาย</span>`
+        : item.type === "money_found"
+          ? `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold">เก็บเงินได้</span>`
+          : `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold">เก็บได้</span>`;
 
     let statusText = "";
     if (item.status === "searching") statusText = `<span class="text-rose-600 font-bold"><i class="fa-solid fa-spinner animate-spin mr-1 text-[10px]"></i>กำลังตามหา</span>`;
@@ -3284,9 +3404,13 @@ function openAdminLostFoundModal(id) {
   if (!item) return;
 
   document.getElementById("admin-lf-id").value = item.id;
-  document.getElementById("admin-lf-lbl-type").innerHTML = item.type === "lost" 
-    ? `<span class="text-rose-500">ของหาย</span>` 
-    : `<span class="text-emerald-500">เก็บได้</span>`;
+  document.getElementById("admin-lf-lbl-type").innerHTML = item.type === "lost"
+    ? `<span class="text-rose-500">ของหาย</span>`
+    : item.type === "money_lost"
+      ? `<span class="text-rose-500">เงินหาย</span>`
+      : item.type === "money_found"
+        ? `<span class="text-emerald-500">เก็บเงินได้</span>`
+        : `<span class="text-emerald-500">เก็บได้</span>`;
   document.getElementById("admin-lf-lbl-name").textContent = item.itemName;
   document.getElementById("admin-lf-lbl-location").textContent = item.roomLocation;
   document.getElementById("admin-lf-lbl-category").textContent = `${getLostFoundCategoryMeta(item.category).icon} ${getLostFoundCategoryMeta(item.category).label}`;

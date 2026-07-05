@@ -36,6 +36,8 @@
 </head>
 <body class="h-full bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex flex-col md:flex-row overflow-hidden">
 
+  <div id="app-toast" class="fixed top-4 right-4 z-[1000] flex flex-col gap-2 w-[min(92vw,360px)] pointer-events-none"></div>
+
   <!-- Sidebar (ส่วนการนำทาง) -->
   <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-100 flex flex-col transform -translate-x-full transition-transform duration-300 md:translate-x-0 md:relative md:flex shrink-0">
     <!-- Brand Header -->
@@ -308,7 +310,7 @@
           <div class="absolute right-0 bottom-0 translate-y-12 translate-x-12 w-64 h-64 rounded-full bg-blue-500/20 pointer-events-none"></div>
           <div class="absolute right-0 top-0 -translate-y-12 translate-x-4 w-40 h-40 rounded-full bg-blue-400/10 pointer-events-none"></div>
         </div>
-
+        
         <!-- Problem Resolution Statistics Grid -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <!-- Total -->
@@ -998,9 +1000,9 @@
             </div>
             <select id="lf-category-filter" onchange="filterLostFoundByCategory(this.value)" class="py-1.5 px-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-xs">
               <option value="all">ทุกหมวดหมู่</option>
-              <option value="money">💵 เงิน/ทอง</option>
+              <option value="money">💵 เงิน</option>
               <option value="electronics">📱 อุปกรณ์อิเล็กทรอนิกส์</option>
-              <option value="documents">🪪 เอกสาร/บัตร</option>
+              <option value="documents">📄 เอกสาร/บัตร</option>
               <option value="keys">🔑 กุญแจ/กุญแจรถ</option>
               <option value="clothing">👕 เสื้อผ้า/หมวก</option>
               <option value="accessories">💍 เครื่องประดับ</option>
@@ -1008,18 +1010,18 @@
               <option value="others">🧰 อื่น ๆ</option>
             </select>
           </div>
-          <div class="flex items-center gap-2 w-full md:w-auto">
+          <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <button onclick="openLostFoundModal('lost')" class="flex-1 md:flex-none py-2 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-1.5 transition duration-150 shadow-md">
-              <i class="fa-solid fa-question-circle"></i>
+              <i class="fa-solid fa-bullhorn"></i>
               <span>แจ้งของหาย</span>
             </button>
             <button onclick="openLostFoundModal('found')" class="flex-1 md:flex-none py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-1.5 transition duration-150 shadow-md">
-              <i class="fa-solid fa-hand-holding-heart"></i>
-              <span>แจ้งเก็บของได้</span>
+              <i class="fa-solid fa-box-archive"></i>
+              <span>แจ้งเก็บได้</span>
             </button>
-            <button onclick="openLostFoundModal('money_collected')" class="flex-1 md:flex-none py-2 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-1.5 transition duration-150 shadow-md">
+            <button onclick="openLostFoundModal('money')" class="flex-1 md:flex-none py-2 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-1.5 transition duration-150 shadow-md" id="btn-report-money">
               <i class="fa-solid fa-coins"></i>
-              <span>แจ้งเก็บเงินได้</span>
+              <span>แจ้งเงินเอา</span>
             </button>
           </div>
         </div>
@@ -1090,7 +1092,7 @@
             </select>
             <select id="admin-lf-filter-category" onchange="renderAdminLostFound()" class="py-1.5 px-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg text-xs">
               <option value="all">หมวดหมู่ทั้งหมด</option>
-              <option value="money">💵 เงิน/ทอง</option>
+              <option value="money">💵 เงิน</option>
               <option value="electronics">📱 อุปกรณ์อิเล็กทรอนิกส์</option>
               <option value="documents">🪪 เอกสาร/บัตร</option>
               <option value="keys">🔑 กุญแจ/กุญแจรถ</option>
@@ -1403,8 +1405,8 @@
   </div>
 
   <!-- 6. Admin Song Editor Modal -->
-  <div id="admin-song-modal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-sm">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 dark:border-slate-700">
+  <div id="admin-song-modal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-sm modal-backdrop">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 dark:border-slate-700 modal-panel">
       <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
         <h3 class="font-bold text-sm text-slate-800 dark:text-white">จัดการสถานะคิวเพลง</h3>
         <button onclick="closeAdminSongModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
@@ -1449,8 +1451,8 @@
   </div>
 
   <!-- 7. Student Lost & Found Form Modal -->
-  <div id="student-lostfound-modal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-sm">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 dark:border-slate-700">
+  <div id="student-lostfound-modal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-sm modal-backdrop">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 dark:border-slate-700 modal-panel">
       <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
         <h3 id="lf-modal-title" class="font-bold text-sm text-slate-800 dark:text-white">แจ้งของหาย / เก็บของได้</h3>
         <button onclick="closeLostFoundModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
@@ -1460,14 +1462,21 @@
       <form id="form-lostfound-report" onsubmit="event.preventDefault(); submitLostFoundReport();" class="p-6 space-y-4 text-xs">
         <input type="hidden" id="lf-type">
         
-        <!-- Warning for admin-only items -->
-        <div id="lf-admin-warning" class="hidden p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 rounded-lg flex items-start gap-2">
-          <i class="fa-solid fa-triangle-exclamation text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0"></i>
-          <div>
-            <div class="font-semibold text-amber-800 dark:text-amber-200">⚠️ ข้อมูลนี้จะแสดงเฉพาะแอดมิน</div>
-            <div class="text-amber-700 dark:text-amber-300 text-[10px] mt-0.5">นักเรียนปกติจะไม่เห็นรายงานนี้ เพื่อความเป็นส่วนตัว</div>
+        <!-- Money type selector (lost/found) -->
+        <div id="lf-money-type-section" class="hidden p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700/50 rounded-lg">
+          <label class="block font-semibold text-blue-800 dark:text-blue-200 mb-2 text-xs">เลือกประเภทเงิน</label>
+          <div class="flex gap-2">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="money-type" value="lost" onclick="document.getElementById('lf-type').value = 'money_lost'" class="w-4 h-4">
+              <span class="text-blue-700 dark:text-blue-300 text-xs font-medium">💵 เงินหาย</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="money-type" value="found" onclick="document.getElementById('lf-type').value = 'money_found'" class="w-4 h-4">
+              <span class="text-blue-700 dark:text-blue-300 text-xs font-medium">🠯 เก็บเงินได้</span>
+            </label>
           </div>
         </div>
+        <!-- Admin-only warning for money_found will be shown in admin modal; student flow hides money_found by render logic -->
         
         <!-- Reporter Info (Editable) -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-slate-100 dark:border-slate-700/50 pb-3">
@@ -1486,8 +1495,8 @@
         </div>
 
         <div id="lf-item-name-section">
-          <label id="lf-item-name-label" class="block font-semibold text-slate-500 dark:text-slate-400 mb-1">ชื่อสิ่งของ <span class="text-rose-500">*</span></label>
-          <input type="text" id="lf-item-name" required placeholder="ระบุชื่อสิ่งของ เช่น กุญแจรถ, สมุดจด, โทรศัพท์" class="w-full py-2 px-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500">
+          <label id="lf-item-name-label" class="block font-semibold text-slate-500 dark:text-slate-400 mb-1">ชื่อสิ่งของ / รายการ <span class="text-rose-500">*</span></label>
+          <input type="text" id="lf-item-name" required placeholder="เช่น กระเป๋านักเรียน, โทรศัพท์, สมุด" class="w-full py-2 px-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500">
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
